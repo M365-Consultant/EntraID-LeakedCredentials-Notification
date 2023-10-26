@@ -36,5 +36,7 @@ There are a few parameters which must be set for a job run:
   - turns the user-notification on (true) or off (false)
 
 # Changelog
+- v0.2 Small bug fix on the datetime format
+  - The format was on yyyy-MM-ddThh:mm:ssZ instead yyyy-MM-ddTHH:mm:ssZ. This caused a error on saving time in 24h format.
 - v0.1 First release
   - First release of this script
