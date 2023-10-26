@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 0.1
+.VERSION 0.2
 .GUID 6ff501e7-f9bc-4026-b6b8-07829949ef20
 .AUTHOR Dominik Gilgen
 .COMPANYNAME Dominik Gilgen (Personal)
@@ -8,7 +8,7 @@
 .PROJECTURI https://github.com/M365-Consultant/EntraID-LeakedCredentials-Notification/
 .EXTERNALMODULEDEPENDENCIES Microsoft.Graph.Authentication,Microsoft.Graph.Identity.SignIns,Microsoft.Graph.Users,Microsoft.Graph.Users.Actions
 .RELEASENOTES
-First release of this Azure Runbook
+Small bugfix on the datetime format
 #>
 
 <# 
@@ -62,7 +62,7 @@ Connect-MgGraph -Identity
 #Preparing necessary variables
 $variableLastObjectTime = Get-AutomationVariable -Name 'LeakedCredentialsNotification_lastObject'
 $filterEventType = "RiskEventType eq 'leakedCredentials'"
-$filterEventTime = "DetectedDateTime gt " + $variableLastObjectTime.ToString('yyyy-MM-ddThh:mm:ssZ')
+$filterEventTime = "DetectedDateTime gt " + $variableLastObjectTime.ToString('yyyy-MM-ddTHH:mm:ssZ')
 $mailRecipientsArray = $mailRecipients.Split(";")
 
 #Preparing mail content
@@ -175,12 +175,13 @@ function runbookSendMailAdmin {
   }
 
 #Getting all new leaked credential events
-$riskDetections = Get-MgRiskDetection -All -Filter "$filterEventType and $filterEventTime"
+$riskDetections = Get-MgRiskDetection -All -Filter "$filterEventType and $filterEventTime" | Sort-Object -Property DetectedDateTime
+
 foreach ($event in $riskDetections)
 {
     #Gathering user details (required for the user-mail)
-    $userDetails = Get-MgUser -UserId $event.UserId | Select-Object DisplayName,UserPrincipalName,Mail,PreferredLanguage
-    
+    $userDetails = Get-MgUser -UserId $event.UserId | Select-Object DisplayName,UserPrincipalName,Mail,PreferredLanguage 
+
     #Creating a entry on the mail-content
     $mailContentAdminObject = "<tr><td>"+$event.DetectedDateTime+"</td><td>"+$event.UserDisplayName+"</td><td>"+$event.UserPrincipalName+"</td></tr>"
     $mailContentAdminDetails += $mailContentAdminObject
@@ -190,7 +191,7 @@ foreach ($event in $riskDetections)
     Write-Output $outputMessage
 
     #Sending the user-mail
-    If ($notifyUser -eq "True") {runbookSendMailUser -MailUserRecipient $userDetails.Mail -MailUserDetectionTime $event.DetectedDateTime -MailUserPreferredLanguage $userDetails.PreferredLanguage}
+    If ($notifyUser -eq "True" -and $userDetails) {runbookSendMailUser -MailUserRecipient $userDetails.Mail -MailUserDetectionTime $event.DetectedDateTime -MailUserPreferredLanguage $userDetails.PreferredLanguage}
 
 }
 
@@ -202,7 +203,9 @@ $mailContentAdminDetails += "</tbody></table><br><p>Go to Entra Admin Center for
 if($riskDetections){
   runbookSendMailAdmin
   $automationvariableValue = $riskDetections.DetectedDateTime | Select-Object -Last 1
+  $automationvariableValue = $automationvariableValue.ToString('yyyy-MM-ddTHH:mm:ssZ')
   Set-AutomationVariable -Name 'LeakedCredentialsNotification_lastObject' -Value $automationvariableValue
+  Write-Output "Automation Variable set to $automationvariableValue"
 }
 else{Write-Output "No new leaked credential events found."}
 
