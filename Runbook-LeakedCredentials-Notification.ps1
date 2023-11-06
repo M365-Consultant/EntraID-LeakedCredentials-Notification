@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 0.2
+.VERSION 0.3
 .GUID 6ff501e7-f9bc-4026-b6b8-07829949ef20
 .AUTHOR Dominik Gilgen
 .COMPANYNAME Dominik Gilgen (Personal)
@@ -8,7 +8,7 @@
 .PROJECTURI https://github.com/M365-Consultant/EntraID-LeakedCredentials-Notification/
 .EXTERNALMODULEDEPENDENCIES Microsoft.Graph.Authentication,Microsoft.Graph.Identity.SignIns,Microsoft.Graph.Users,Microsoft.Graph.Users.Actions
 .RELEASENOTES
-Small bugfix on the datetime format
+Added a group-function where users with leaked credentials are assigned to a group.
 #>
 
 <# 
@@ -25,12 +25,14 @@ Small bugfix on the datetime format
  
  The managed identity requires the following Graph Permissions:
     - User.Read.All
+    - Group.ReadWrite.All
     - IdentityRiskEvent.Read.All
     - Mail.Send
 
  The script requires the following modules:
     - Microsoft.Graph.Authentication
     - Microsoft.Graph.Identity.SignIns
+    - Microsoft.Graph.Groups
     - Microsoft.Graph.Users
     - Microsoft.Graph.Users.Actions
 
@@ -43,6 +45,7 @@ Small bugfix on the datetime format
     - $mailSender -> The mail-alias from which the mail will be send (can be a user-account or a shared-mailbox)
     - $mailRecipients -> The recpient(s) of a mail. If you want more than one recpient, you can seperate them with ;
     - $notifyUser -> turns the user-notification on (true) or off (false)
+    - $groupid_leakedcredentials -> if provided, the users with leaked credentials are assigned to a group, which can be used for e.g. Conditional Access
 
 #> 
 
@@ -53,7 +56,9 @@ Param
   [Parameter (Mandatory= $true)]
   [String] $mailRecipients,
   [Parameter (Mandatory= $true)]
-  [Boolean] $notifyUser
+  [Boolean] $notifyUser,
+  [Parameter (Mandatory= $false)]
+  [String] $groupid_leakedcredentials
 )
 
 #Connect to Microsoft Graph using a Managed Identity
@@ -192,6 +197,11 @@ foreach ($event in $riskDetections)
 
     #Sending the user-mail
     If ($notifyUser -eq "True" -and $userDetails) {runbookSendMailUser -MailUserRecipient $userDetails.Mail -MailUserDetectionTime $event.DetectedDateTime -MailUserPreferredLanguage $userDetails.PreferredLanguage}
+
+    #Add User to Group if LeakedUsersGroupID is defined
+    IF ($groupid_leakedcredentials){
+        New-MgGroupMember -GroupId $groupid_leakedcredentials -DirectoryObjectId $event.UserId
+    }
 
 }
 
