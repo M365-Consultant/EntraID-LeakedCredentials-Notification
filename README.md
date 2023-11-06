@@ -11,12 +11,14 @@ Before running the runbook, you need to set up an automation account with a mana
 
 The managed identity requires the following Graph Permissions:
    - User.Read.All
+   - Group.ReadWrite.All
    - IdentityRiskEvent.Read.All
    - Mail.Send
 
 The script requires the following modules:
    - Microsoft.Graph.Authentication
    - Microsoft.Graph.Identity.SignIns
+   - Microsoft.Graph.Groups
    - Microsoft.Graph.Users
    - Microsoft.Graph.Users.Actions
 
@@ -34,8 +36,12 @@ There are a few parameters which must be set for a job run:
   - The recipient(s) of the mail (internal or external). If you want more than one recipient, you can separate them with the character ; in between.
 - $notifyUser
   - turns the user-notification on (true) or off (false)
+ - $groupid_leakedcredentials
+  - if provided, the users with leaked credentials are assigned to a group, which can be used for e.g. Conditional Access
 
 # Changelog
+- v0.3 Added group-function
+  - If a group-ID is provided, the users with leaked credentials are assigned to a group, which can be used for e.g. Conditional Access
 - v0.2 Small bug fix on the datetime format
   - The format was on yyyy-MM-ddThh:mm:ssZ instead yyyy-MM-ddTHH:mm:ssZ. This caused a error on saving time in 24h format.
 - v0.1 First release
